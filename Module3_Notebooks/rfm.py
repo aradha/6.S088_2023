@@ -117,7 +117,6 @@ def egop(G, verbose=False, diag_only=False):
     M /= len(G)
     if diag_only:
         M = np.diag(M)
-    print(M.shape)
     return M
 
 class RFM(BaseEstimator):
