@@ -9,7 +9,8 @@ def test_rfm():
 
     model = rfm.RFM()
     model = model.fit(x_train, y_train, num_iters=2, reg=1e-4,
-                      centering=True, verbose=False, diag_only=False)
+                      centering=True, verbose=False, diag_only=False,
+                      verify_gradients=True)
 
     M = model.get_M()
     expectedc_M = np.array([
