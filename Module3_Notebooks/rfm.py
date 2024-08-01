@@ -44,7 +44,6 @@ def get_grads(X, sol, L, P, max_num_samples=20000, centering=True):
     with np.errstate(divide='ignore'):
         K = K / dist
 
-    # RK: Why set to 0 and not some large number?
     K[K == float("Inf")] = 0.
 
     a1 = sol.T
