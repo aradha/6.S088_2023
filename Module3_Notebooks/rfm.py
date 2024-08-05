@@ -30,7 +30,7 @@ def laplace_kernel(samples, centers, bandwidth, M=None):
     return kernel_mat
 
 
-def get_grads(X, sol, L, P, max_num_samples=20000, centering=True):
+def get_grads(X, sol, L, P, max_num_samples=20000):
     if len(X) > max_num_samples:
         indices = np.random.randint(len(X), size=max_num_samples)
         x = X[indices, :]
@@ -74,8 +74,6 @@ def get_grads(X, sol, L, P, max_num_samples=20000, centering=True):
     step3 = step3 @ x1
 
     G = (step2 - step3) * -1/L
-    if centering:
-        G -= np.mean(G, axis=0, keepdims=True)
     return G
 
 def egop(G, verbose=False, diag_only=False):
@@ -115,7 +113,8 @@ class RFM(BaseEstimator):
             print(message)
 
     def fit(self, X_train, y_train, reg=1e-3, bandwidth=10, num_iters=5,
-            M=None, centering=True, verbose=False, diag_only=False):
+            M=None, centering=True, verbose=False, diag_only=False,
+            verify_gradients=False):
         self.X_train = X_train
         self.verbose = verbose
         n, d = X_train.shape
@@ -138,7 +137,15 @@ class RFM(BaseEstimator):
                 break
 
             start = time.time()
-            G = get_grads(X_train, self.alphas, self.L, M, centering=centering)
+            G = self.get_gradient_analytically(X_train)
+
+            if verify_gradients:
+                G_numerical = self.get_gradient_numerically(X_train)
+                assert np.allclose(G, G_numerical, atol=1e-2)
+
+            if centering:
+                G -= np.mean(G, axis=0, keepdims=True)
+
             end = time.time()
             self.print_if_verbose(f"Computed Gradients in {end - start} seconds.")
 
@@ -150,6 +157,20 @@ class RFM(BaseEstimator):
 
         self.alphas = sol
         return self
+
+    def get_gradient_numerically(self, X, eps=1e-1):
+        d = X.shape[1]
+        G_numeric = np.zeros((X.shape[0], self.alphas.shape[0], d))
+        unperturbed_y = self.predict(X)
+        for j in range(d):
+            X_perturbed = X.copy()
+            X_perturbed[:, j] += eps
+            perturbed_y = self.predict(X_perturbed)
+            G_numeric[:, :, j] = (perturbed_y - unperturbed_y) / eps
+        return G_numeric
+
+    def get_gradient_analytically(self, X):
+        return get_grads(X, self.alphas, self.L, self.M)
 
     def predict(self, X_test):
         K_test = laplace_kernel(self.X_train, X_test, self.L, M=self.M)
